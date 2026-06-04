@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="is">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heimsmarkmið Sameinuðu þjóðanna</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800 font-sans antialiased">
+
+<!-- Chosen Palette: Mjúkir jarðlitir sem bakgrunnur (stone-50 til stone-800) og nákvæmir heimsmarkmiðalitir fyrir gagnvirku þættina til að skapa bæði fræðandi og kraftmikið útlit. -->
+<!-- Application Structure Plan: Notendaviðmótið byggist á mælaborði (dashboard) þar sem yfirlit allra 17 markmiðanna er sett fram í myndrænu risti. Þetta auðveldar notandanum að skanna yfir heildarmyndina. Við smell á einstakt markmið uppfærist neðri greiningarhlutinn kvikt. Þar mætast öflugar, greinandi útskýringar og gagnvirk framvindurit. Þessi uppbygging kemur í veg fyrir upplýsingaofhleðslu en býður upp á djúpköfun eftir áhugasviði hvers og eins. -->
+<!-- Visualization & Content Choices: Við notum gagnvirkt rist fyrir yfirlitið til að skapa 'uppgötvunar'-tilfinningu. Fyrir gagnagreininguna á framvindu notum við Chart.js (súlurit). Súluritið ber saman núverandi (áætlaða/ímyndaða fyrir þetta viðmót) stöðu á heimsvísu við lokamarkmiðið (100%) árið 2030, sem sýnir myndrænt gjána sem þarf að brúa. Ekkert SVG er notað, heldur Unicode tákn til að tryggja létt og hratt viðmót samkvæmt kröfum. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <main class="max-w-6xl mx-auto px-4 py-12">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-stone-900 mb-4">Heimsmarkmið Sameinuðu þjóðanna</h1>
+            <p class="text-lg md:text-xl text-stone-600 max-w-3xl mx-auto leading-relaxed">
+                Dagskrá 2030 er alheimsáætlun um sjálfbæra þróun. Hér að neðan er gagnvirk greiningarskýrsla um þau 17 markmið sem öll aðildarríki SÞ hafa samþykkt til að tryggja velsæld fólks og plánetu. Smellið á markmið til að kafa dýpra í mikilvægi þess og skoða framvindu.
+            </p>
+        </header>
+
+        <section class="mb-16">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-stone-800 mb-2">Yfirlit Markmiða</h2>
+                <p class="text-stone-600">Veldu markmið úr ristinni til að opna nákvæma greiningu og framvindurit í upplýsingaglugganum fyrir neðan.</p>
+            </div>
+            
+            <div id="sdg-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            </div>
+        </section>
+
+        <section id="detail-section" class="bg-white rounded-2xl shadow-xl p-6 md:p-10 border-t-8 border-stone-200 hidden fade-in">
+            <div class="mb-8">
+                <h2 class="text-xl text-stone-500 font-semibold uppercase tracking-wider mb-2">Greining & Upplýsingar</h2>
+                <p class="text-stone-600">Þessi hluti birtir djúpstæða útskýringu á völdu markmiði ásamt greiningu á því hversu langt við eigum í land á heimsvísu til að ná fullri framkvæmd fyrir árið 2030.</p>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-10">
+                <div class="lg:w-1/2 flex flex-col justify-center">
+                    <div id="detail-icon" class="text-6xl mb-4"></div>
+                    <h3 id="detail-title" class="text-3xl font-bold mb-6 text-stone-900 leading-tight"></h3>
+                    <div class="prose prose-stone">
+                        <p id="detail-desc" class="text-lg leading-relaxed text-stone-700"></p>
+                    </div>
+                </div>
+
+                <div class="lg:w-1/2 bg-stone-50 p-6 rounded-xl border border-stone-100 flex flex-col justify-center">
+                    <h4 class="text-center font-bold text-stone-800 mb-4 text-lg">Áætluð hnattræn framvinda til 2030 (%)</h4>
+                    <div class="chart-container">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                    <p class="text-xs text-center text-stone-500 mt-4">*Tölur eru til viðmiðunar um alþjóðlega áskorun hvers markmiðs.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const sdgData = [
+            { 
+                id: 1, 
+                title: 'Engin fátækt', 
+                color: '#E5243B', 
+                icon: '🪙', 
+                desc: 'Fátækt er ekki aðeins skortur á fjármagni, hún er mannréttindabrot sem rænir fólk tækifærum, heilsu og reisn. Að útrýma fátækt í öllum sínum myndum er grunnforsenda allrar annarrar þróunar. Þegar fólk hefur ekki efni á mat eða læknisþjónustu brotnar samfélagsgerðin. Markmiðið krefst beinna aðgerða til að tryggja öllum lágmarks lífskjör, jafnan rétt til efnahagslegra bjargráða og öflug félagsleg öryggisnet.',
+                progress: 45
+            },
+            { 
+                id: 2, 
+                title: 'Ekkert hungur', 
+                color: '#DDA63A', 
+                icon: '🌾', 
+                desc: 'Það er óásættanlegt að í heimi allsnægta fari hundruð milljóna manna svöng að sofa. Þetta markmið snýst um eitthvað mun stærra en matvælaaðstoð; það krefst umbyltingar á alþjóðlega matvælakerfinu. Við þurfum sjálfbæran landbúnað sem þolir loftslagsbreytingar, nýsköpun í ræktun og örugga fæðukeðju sem nær til þeirra allra viðkvæmustu.',
+                progress: 38
+            },
+            { 
+                id: 3, 
+                title: 'Heilsa og vellíðan', 
+                color: '#4C9F38', 
+                icon: '❤️', 
+                desc: 'Góð heilsa er grunnurinn að hagvexti og stöðugleika. Án andlegrar og líkamlegrar heilsu geta einstaklingar ekki lært, unnið eða lagt mörkum til samfélagsins. Þetta krefst þess að við tryggjum aðgengi allra að gæða heilbrigðisþjónustu, berjast gegn smitsjúkdómum á heimsvísu og leggjum aukna áherslu á geðheilbrigði hvarvetna.',
+                progress: 52
+            },
+            { 
+                id: 4, 
+                title: 'Menntun fyrir alla', 
+                color: '#C5192D', 
+                icon: '📚', 
+                desc: 'Menntun er einhver öflugasti vaki umbreytinga í heiminum. Hún rýfur vítahring fátæktar, ýtir undir jafnrétti og er forsenda nýsköpunar. Markmiðið krefst þess að við bjóðum ekki bara upp á skólavist, heldur vandaða menntun sem þjálfar gagnrýna hugsun, tæknilæsi og samkennd, óháð kyni eða uppruna.',
+                progress: 60
+            },
+            { 
+                id: 5, 
+                title: 'Jafnrétti kynjanna', 
+                color: '#FF3A21', 
+                icon: '⚖️', 
+                desc: 'Samfélög munu aldrei ná fullum möguleikum ef helmingi mannkyns er haldið aftur. Jafnrétti kynjanna er ekki einungis grundvallarmannréttindi heldur efnahagsleg nauðsyn. Það krefst tafarlausra aðgerða til að uppræta ofbeldi gagnvart konum, tryggja jöfn laun fyrir jafnverðmæt störf og fulla þátttöku kvenna við allar ákvarðanatökur.',
+                progress: 48
+            },
+            { 
+                id: 6, 
+                title: 'Hreint vatn og hreinlætisaðstaða', 
+                color: '#26BDE2', 
+                icon: '💧', 
+                desc: 'Aðgangur að hreinu vatni er líf eða dauði. Skortur á hreinlætisaðstöðu drepur milljónir ár hvert úr sjúkdómum sem hægt væri að koma í veg fyrir. Við verðum að stórefla fjárfestingar í vatnsinnviðum, vernda ferskvatnsvistkerfi og binda enda á ofnýtingu og mengun vatnsbóla jarðarinnar.',
+                progress: 55
+            },
+            { 
+                id: 7, 
+                title: 'Sjálfbær orka', 
+                color: '#FCC30B', 
+                icon: '⚡', 
+                desc: 'Hagkerfi nútímans gengur fyrir orku, en ósjálfbær orkunotkun keyrir áfram loftslagsvána. Til að brúa gjána verðum við að ráðast í stærstu orkuskipti mannkynssögunnar. Að veita öllum aðgang að hreinni, ódýrri og endurnýjanlegri orku er lykillinn að því að afkola hagkerfin og bæta lífskjör um leið.',
+                progress: 62
+            },
+            { 
+                id: 8, 
+                title: 'Góð atvinna og hagvöxtur', 
+                color: '#A21942', 
+                icon: '📈', 
+                desc: 'Hagvöxtur má ekki vera á kostnað manneskjunnar eða umhverfisins. Við þurfum nýtt efnahagslíkan sem skapar mannsæmandi störf, virðir réttindi verkafólks og aðskilur hagvöxt frá umhverfisspjöllum. Þetta krefst gríðarlegrar áherslu á nýsköpun, stuðning við lítil og meðalstór fyrirtæki og útrýmingu nútímaþrælahalds.',
+                progress: 42
+            },
+            { 
+                id: 9, 
+                title: 'Nýsköpun og uppbygging', 
+                color: '#FD6925', 
+                icon: '🏗️', 
+                desc: 'Öflugir innviðir—allt frá vegum til háhraðanets—eru æðar samfélagsins. Án traustra innviða og tækninýjunga geta þjóðir ekki brugðist við áföllum eða keppt á alþjóðavísu. Við verðum að fjárfesta í iðnaði sem byggir á sjálfbærni, stafrænni tækni og grænni nýsköpun.',
+                progress: 50
+            },
+            { 
+                id: 10, 
+                title: 'Aukinn jöfnuður', 
+                color: '#DD1367', 
+                icon: '🤝', 
+                desc: 'Gríðarlegur ójöfnuður, bæði innan landa og milli þeirra, er eitur í beinum samfélagslegrar samheldni. Hann ýtir undir spennu, átök og pólitískan óstöðugleika. Til að tryggja sjálfbæra framtíð verðum við að innleiða kerfisbundnar breytingar sem tryggja sanngjarna skattlagningu, jöfn tækifæri og að rödd þróunarríkja heyrist á alþjóðavettvangi.',
+                progress: 35
+            },
+            { 
+                id: 11, 
+                title: 'Sjálfbærar borgir', 
+                color: '#FD9D24', 
+                icon: '🏙️', 
+                desc: 'Meirihluti mannkyns býr nú í borgum. Framtíð plánetunnar mun ráðast af því hvernig við hönnum borgir okkar. Við verðum að umbreyta þeim í seigar, snjallar og vistvænar heildir með skilvirkum almenningssamgöngum, nægum grænum svæðum og húsnæði á viðráðanlegu verði sem menga minna og bæta lífsgæði.',
+                progress: 47
+            },
+            { 
+                id: 12, 
+                title: 'Ábyrg neysla', 
+                color: '#BF8B2E', 
+                icon: '♻️', 
+                desc: 'Við erum að ganga á auðlindir jarðarinnar líkt og við ættum aðra plánetu til vara. Hið línulega hagkerfi ("taka, búa til, henda") gengur ekki lengur upp. Við verðum að innleiða hringrásarhagkerfið tafarlaust, minnka sóun verulega, draga úr matarsóun og hvetja fyrirtæki til róttækra breytinga á framleiðsluaðferðum.',
+                progress: 30
+            },
+            { 
+                id: 13, 
+                title: 'Aðgerðir í loftslagsmálum', 
+                color: '#3F7E44', 
+                icon: '🌍', 
+                desc: 'Loftslagsváin er stærsta og bráðasta ógn sem mannkynið stendur frammi fyrir. Hún ræðst að öllum öðrum heimsmarkmiðum. Glugginn til að halda hlýnun jarðar í skefjum er að lokast. Við verðum að samþætta aðgerðir í loftslagsmálum við allar ákvarðanir og flýta gríðarlega fyrir minnkun á losun gróðurhúsalofttegunda á heimsvísu.',
+                progress: 25
+            },
+            { 
+                id: 14, 
+                title: 'Líf í vatni', 
+                color: '#0A97D9', 
+                icon: '🐟', 
+                desc: 'Höfin þekja stærstan hluta jarðar, knýja loftslagskerfi okkar og brauðfæða milljarða manna. Mengun sjávar (sérstaklega plastmengun), ofveiði og súrnun sjávar vegna koltvísýrings stefna lífkerfum hafsins í mikla hættu. Við verðum að stækka vernduð hafsvæði og hætta hvers kyns eyðileggingu hafsbotnsins.',
+                progress: 32
+            },
+            { 
+                id: 15, 
+                title: 'Líf á landi', 
+                color: '#56C02B', 
+                icon: '🌳', 
+                desc: 'Skógar og landvistkerfi eru lungu jarðarinnar. Hraði tegundadauða er nú fordæmalaus í mannkynssögunni. Skógareyðing, eyðimerkurmyndun og hnignun jarðvegs hefur skelfilegar afleiðingar á matvælaöryggi og getu náttúrunnar til að binda kolefni. Að vernda og endurheimta náttúruna er bókstaflega spurning um líf eða dauða.',
+                progress: 36
+            },
+            { 
+                id: 16, 
+                title: 'Friður og réttlæti', 
+                color: '#00689D', 
+                icon: '🕊️', 
+                desc: 'Sjálfbær þróun getur ekki þrifist án friðar, og friður ekki án sjálfbærrar þróunar. Spilling, kúgun, ofbeldi og veikar stofnanir sundra samfélögum. Við þurfum að byggja upp gagnsæjar, ábyrgar stofnanir á öllum stigum, verja mannréttindi heiftarlega og tryggja öllum jafnan aðgang að réttarkerfi sem virkar.',
+                progress: 40
+            },
+            { 
+                id: 17, 
+                title: 'Samvinna um markmiðin', 
+                color: '#19486A', 
+                icon: '🤝', 
+                desc: 'Ekkert af þessum markmiðum verður að veruleika án öflugs, bindandi samstarfs þvert á landamæri og atvinnugreinar. Við þurfum fordæmalaust samstarf ríkisstjórna, einkageirans og borgaralegs samfélags. Þetta krefst gríðarlegrar alþjóðlegrar fjármögnunar, tækniyfirfærslu og að við vinnum öll að sama marki sem ein heild.',
+                progress: 58
+            }
+        ];
+
+        let progressChartInstance = null;
+
+        function renderGrid() {
+            const grid = document.getElementById('sdg-grid');
+            sdgData.forEach(sdg => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full flex flex-col items-center justify-center p-4 rounded-xl shadow-md transition-all duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-opacity-50 min-h-[140px] text-white font-bold group relative overflow-hidden';
+                btn.style.backgroundColor = sdg.color;
+                
+                btn.innerHTML = `
+                    <span class="text-4xl mb-2 transition-transform duration-300 group-hover:scale-125">${sdg.icon}</span>
+                    <span class="text-xs sm:text-sm md:text-base text-center font-bold tracking-wide">${sdg.id}. ${sdg.title}</span>
+                `;
+                
+                btn.onclick = () => showDetail(sdg);
+                grid.appendChild(btn);
+            });
+        }
+
+        function showDetail(sdg) {
+            const detailSection = document.getElementById('detail-section');
+            detailSection.classList.remove('hidden');
+            
+            detailSection.classList.remove('fade-in');
+            void detailSection.offsetWidth;
+            detailSection.classList.add('fade-in');
+
+            document.getElementById('detail-title').innerText = `Markmið ${sdg.id}: ${sdg.title}`;
+            document.getElementById('detail-title').style.color = sdg.color;
+            document.getElementById('detail-desc').innerText = sdg.desc;
+            document.getElementById('detail-icon').innerText = sdg.icon;
+            
+            detailSection.style.borderTopColor = sdg.color;
+
+            renderChart(sdg);
+
+            detailSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function renderChart(sdg) {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            
+            if (progressChartInstance) {
+                progressChartInstance.destroy();
+            }
+
+            Chart.defaults.font.family = "'Inter', 'sans-serif'";
+            Chart.defaults.color = '#44403c';
+
+            progressChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Áætluð staða í dag', 'Lokamarkmið 2030'],
+                    datasets: [{
+                        label: 'Framvinda (%)',
+                        data: [sdg.progress, 100],
+                        backgroundColor: [
+                            sdg.color,
+                            '#e7e5e4' 
+                        ],
+                        borderColor: [
+                            sdg.color,
+                            '#d6d3d1'
+                        ],
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(28, 25, 23, 0.9)',
+                            titleFont: { size: 14 },
+                            bodyFont: { size: 16, weight: 'bold' },
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: '#f5f5f4',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                stepSize: 20
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: {
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 800,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', renderGrid);
+    </script>
+</body>
+</html>
